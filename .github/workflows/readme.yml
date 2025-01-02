@@ -1,0 +1,36 @@
+name: Update Profile README
+
+on:
+  schedule:
+    - cron: "0 * * * *" # Runs hourly
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Fetch Weather Data
+        run: curl "https://api.openweathermap.org/data/2.5/weather?q=482002&appid=9519278e2274b3ce51e5505fd7c628d5" -o weather.json
+
+      - name: Fetch GitHub Stats
+        run: curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -X POST -d '{ "query": "query { viewer { contributionsCollection { contributionCalendar { totalContributions } } } }" }' \
+          https://api.github.com/graphql -o github-stats.json
+
+      - name: Update README
+        run: |
+          python3 update_readme.py
+        env:
+          WEATHER_JSON: weather.json
+          GITHUB_STATS_JSON: github-stats.json
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add README.md
+          git commit -m "Update dynamic README"
+          git push
